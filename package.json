@@ -1,0 +1,17 @@
+{
+  "name": "cordova-plugin-webserver",
+  "version": "1.0.0",
+  "description": "A web server that runs on localhost and can communicate with the site",
+  "cordova": {
+    "id": "cordova-plugin-webserver",
+    "platforms": [
+      "android"
+    ]
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "Qbix",
+  "license": "ISC"
+}

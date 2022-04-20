@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin 
+    xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    id="cordova-plugin-webserver"
+    version="1.0.0">
+    
+    <name>LocalhostWebServer</name>
+    
+    <engines>
+        <engine name="cordova" version=">=9.0.0"/>
+        <engine name="cordova-android" version=">=9.0.0"/>
+    </engines>
+
+    <js-module name="LocalhostWebServer" src="www/LocalhostWebServer.js">
+        <clobbers target="cordova.plugins.webServer" />
+    </js-module>
+
+    <platform name="android">
+        <config-file parent="/*" target="res/xml/config.xml">
+            <preference name="GradlePluginKotlinEnabled" value="true" />
+            <preference name="GradlePluginKotlinCodeStyle" value="official" />
+            <preference name="GradlePluginKotlinVersion" value="1.3.50" />
+            
+            <feature name="LocalhostWebServer">
+                <param name="android-package" value="localhostwebserver.LocalhostWebServer" />
+            </feature>
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+        </config-file>
+
+        <config-file parent="/manifest/application" target="AndroidManifest.xml" >
+              <service android:name="localhostwebserver.WebServerService" android:stopWithTask="false" />
+        </config-file>
+        <!--  -->
+        <source-file src="src/android/webserver-plugin-build-extras.gradle" target-dir="."/>
+        <source-file src="src/android/LocalhostWebServer.kt" target-dir="src/main/kotlin/localhostwebserver" />
+        <source-file src="src/android/WebServer.kt" target-dir="src/main/kotlin/localhostwebserver"/>
+        <source-file src="src/android/WebServerService.kt" target-dir="src/main/kotlin/localhostwebserver"/>
+        <!--  -->
+        <framework src="src/android/LocalhostWebServer.gradle" custom="true" type="gradleReference" />
+    </platform>
+</plugin>
