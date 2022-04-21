@@ -12,13 +12,10 @@ import org.json.JSONException
  */
 class LocalhostWebServer : CordovaPlugin() {
 
-//    override fun pluginInitialize() {
-//        super.pluginInitialize()
-//        // Start server
-//        val intent = Intent(cordova.activity, WebServerService::class.java)
-//        startForegroundService(cordova.activity.applicationContext, intent)
-//    }
-
+    override fun pluginInitialize() {
+        super.pluginInitialize()
+        WebServer.getInstance(cordova.context).setPluginManager(webView.pluginManager)
+    }
 
     @Throws(JSONException::class)
     override fun execute(action: String, args: JSONArray, callbackContext: CallbackContext): Boolean {
@@ -35,14 +32,14 @@ class LocalhostWebServer : CordovaPlugin() {
         }
     }
 
-    private fun startServer(callbackContext: CallbackContext): Boolean {
+    private fun startServer(callbackContext: CallbackContext): Boolean { // TODO
         val intent = Intent(cordova.activity, WebServerService::class.java)
         intent.action = "start"
         startForegroundService(cordova.activity.applicationContext, intent)
         return true
     }
 
-    private fun stopServer(callbackContext: CallbackContext): Boolean {
+    private fun stopServer(callbackContext: CallbackContext): Boolean { // TODO
         val intent = Intent(cordova.activity, WebServerService::class.java)
         intent.action = "stop"
         startForegroundService(cordova.activity.applicationContext, intent)

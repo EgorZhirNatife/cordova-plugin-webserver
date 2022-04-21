@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 class WebServerService : Service() {
 
     private val server by lazy {
-        WebServer(applicationContext)
+        WebServer.getInstance(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -20,7 +20,6 @@ class WebServerService : Service() {
             startInForeground()
             server.start()
         } else {
-            // Stop the service
             stopForeground(true)
             stopSelf()
             server.stop()
