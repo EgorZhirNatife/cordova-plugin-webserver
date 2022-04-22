@@ -171,8 +171,8 @@ class WebServer private constructor(private val applicationContext: Context) {
 
         const val CORDOVA_REQUEST_TIMEOUT = 5000
 
-        //        const val HOST = "127.0.0.1"
-        const val HOST = "192.168.0.101"
+        const val HOST = "127.0.0.1"
+        // const val HOST = "192.168.0.101"
         const val PORT = 8080
 
         private var INSTANCE: WebServer? = null
