@@ -2,9 +2,9 @@ var exec = require('cordova/exec');
 
 module.exports = {
     startServer: function(success, error) {
-      exec(success, error, "LocalhostWebServer", "startServer", []);
+      exec(success, error, "WebServerPlugin", "startServer", []);
     },
     stopServer: function() {
-      stopServer(success, error, "LocalhostWebServer", "stopServer", []);
+      stopServer(success, error, "WebServerPlugin", "stopServer", []);
     }
 };

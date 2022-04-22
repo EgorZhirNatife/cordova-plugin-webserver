@@ -1,7 +1,6 @@
-package localhostwebserver
+package webserverplugin
 
 import android.content.Context
-import android.util.Log
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.*
@@ -13,25 +12,33 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.PluginManager
+import webserverplugin.util.RequestErrorMapper
+import webserverplugin.util.respondRequestResult
 
 class WebServer private constructor(private val applicationContext: Context) {
 
     private var pluginManager: PluginManager? = null
+    private var job: CompletableJob? = null
+    private var scope: CoroutineScope? = null
     private val server by lazy {
         createServer()
     }
 
     fun start() {
-        CoroutineScope(Dispatchers.Default).launch { server.start(wait = true) }
+        job = SupervisorJob()
+        scope = job?.let { CoroutineScope(Dispatchers.IO + it) }
+
+        scope?.launch {
+            server.start(wait = true)
+        }
     }
 
     fun stop() {
         server.stop(1000, 2000)
+        job?.cancelChildren()
     }
 
     private fun createServer(): ApplicationEngine {
@@ -39,7 +46,6 @@ class WebServer private constructor(private val applicationContext: Context) {
             connector {
                 port = PORT
                 host = HOST
-                Log.d("tag", host)
             }
             /*
             sslConnector(
@@ -69,10 +75,10 @@ class WebServer private constructor(private val applicationContext: Context) {
                     gzip()
                 }
                 routing {
-                    get("/$STATIC_CONTENT/{...}") { // http://127.0.0.1:8080/static/www/index.html
+                    get("/$STATIC_CONTENT/{...}") { // http://127.0.0.1:8080/static-content/www/index.html
                         serveStaticContent(this)
                     }
-                    post("/$CORDOVA_REQUEST/{...}") { // http://127.0.0.1:8080/cordova-request
+                    post("/$CORDOVA_REQUEST") { // http://127.0.0.1:8080/cordova-request
                         handleCordovaRequest(this)
                     }
                 }
@@ -81,61 +87,72 @@ class WebServer private constructor(private val applicationContext: Context) {
     }
 
     private suspend fun handleCordovaRequest(context: PipelineContext<Unit, ApplicationCall>) {
-        var isRequestFinished = false
         context.apply {
-            val parameters = call.receiveParameters()
-            val service = parameters[PARAM_SERVICE]
-            val action = parameters[PARAM_ACTION]
-            val args = parameters[PARAM_ARGS]
-            val callbackId = "callbackId$service${(100000000..999999999).random()}"
-            if (pluginManager == null) {
-                call.respondText(contentType = ContentType.Text.Plain, text = "pluginManager is null", status = HttpStatusCode.InternalServerError)
-                return@apply
-            }
+            try {
+                val startRequestTime = System.currentTimeMillis()
+                var isRequestFinished = false
+                val parameters = call.receiveParameters()
+                val service = parameters[PARAM_SERVICE]
+                val action = parameters[PARAM_ACTION]
+                val args = parameters[PARAM_ARGS]
+                val callbackId = "callbackId$service${(100000000..999999999).random()}"
 
-            val plugin = pluginManager?.getPlugin(service)
-            if (plugin == null) {
-                call.respondText(contentType = ContentType.Text.Plain, text = "service not found", status = HttpStatusCode.NotFound)
-                return@apply
-            }
+                if (pluginManager == null) {
+                    call.respondRequestResult(RequestErrorMapper.pluginManagerIsNull())
+                    return@apply
+                }
 
-            val fakeWebView = FakeCordovaWebViewImpl { pluginResult, callbackId ->
-                pluginResult?.let { result ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        call.respondText(contentType = ContentType.Text.Plain, text = result.message, status = HttpStatusCode.OK)
+                val plugin = pluginManager?.getPlugin(service)
+                if (plugin == null) {
+                    call.respondRequestResult(RequestErrorMapper.serviceNotFound())
+                    return@apply
+                }
+
+                val fakeWebView = FakeCordovaWebViewImpl { pluginResponse, responseCallbackId ->
+                    scope?.launch {
+                        call.respondRequestResult(
+                            RequestErrorMapper.handlePluginResult(
+                                pluginResponse = pluginResponse,
+                                responseCallbackId = responseCallbackId,
+                                callbackId = callbackId
+                            )
+                        )
                         isRequestFinished = true
                     }
                 }
-            }
-            val callbackContext = CallbackContext(callbackId, fakeWebView)
-            val wasValidAction = plugin.execute(action, args, callbackContext)
-        }
 
-        while (!isRequestFinished) { // TODO rework
-//            delay(50)
+                val callbackContext = CallbackContext(callbackId, fakeWebView)
+                val wasValidAction = plugin.execute(action, args, callbackContext)
+                if (!wasValidAction) {
+                    call.respondRequestResult(RequestErrorMapper.invalidExecutionAction())
+                    return@apply
+                }
+
+                while (!isRequestFinished) {
+                    if (System.currentTimeMillis() - startRequestTime > CORDOVA_REQUEST_TIMEOUT) {
+                        call.respondRequestResult(RequestErrorMapper.gatewayTimeout())
+                        isRequestFinished = true
+                    }
+                    delay(25)
+                }
+            } catch (e: Exception) {
+                call.respondRequestResult(RequestErrorMapper.internalServerError(e))
+            }
         }
     }
 
     private suspend fun serveStaticContent(context: PipelineContext<Unit, ApplicationCall>) {
         context.apply {
-            var status: HttpStatusCode
-            var result: String
-            var contentType: ContentType
             try {
-                val route = call.request.path().trimMargin("/$STATIC_CONTENT/")
-                contentType = ContentType.defaultForFilePath(route)
-                result = applicationContext.assets.open(route).bufferedReader().use { it.readText() }
-                status = HttpStatusCode.OK
+                val path = call.request.path().trimMargin("/$STATIC_CONTENT/")
+                call.respondBytes(
+                    contentType = ContentType.defaultForFilePath(path),
+                    bytes = applicationContext.assets.open(path).readBytes(),
+                    status = HttpStatusCode.OK
+                )
             } catch (e: Exception) {
-                result = HttpStatusCode.NotFound.toString()
-                status = HttpStatusCode.NotFound
-                contentType = ContentType.Any
+                call.respondRequestResult(RequestErrorMapper.notFoundStaticContent())
             }
-            call.respondText(
-                text = result,
-                contentType = contentType,
-                status = status
-            )
         }
     }
 
@@ -148,11 +165,16 @@ class WebServer private constructor(private val applicationContext: Context) {
         const val PARAM_ACTION = "action"
         const val PARAM_SERVICE = "service"
         const val PARAM_ARGS = "args"
-        const val STATIC_CONTENT = "static"
+
+        const val STATIC_CONTENT = "static-content"
         const val CORDOVA_REQUEST = "cordova-request"
-//        const val HOST = "127.0.0.1"
+
+        const val CORDOVA_REQUEST_TIMEOUT = 5000
+
+        //        const val HOST = "127.0.0.1"
         const val HOST = "192.168.0.101"
         const val PORT = 8080
+
         private var INSTANCE: WebServer? = null
 
         @Synchronized

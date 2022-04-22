@@ -1,4 +1,4 @@
-package localhostwebserver
+package webserverplugin
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -25,18 +25,14 @@ class WebServerService : Service() {
             server.stop()
         }
         return START_STICKY
-
     }
 
     private fun startInForeground() {
-//        val notificationIntent = Intent(this, MainActivity::class.java)
-//        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("WebServer")
-            .setContentText("running...").build()
+            .setContentText("running...")
+            .build()
         createNotificationChannel()
-//            .setSmallIcon(R.drawable.ic_delete)
-//            .setContentIntent(pendingIntent)
         startForeground(NOTIFICATION_ID, notification)
     }
 

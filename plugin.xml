@@ -5,14 +5,14 @@
     id="cordova-plugin-webserver"
     version="1.0.0">
     
-    <name>LocalhostWebServer</name>
+    <name>WebServerPlugin</name>
     
     <engines>
         <engine name="cordova" version=">=9.0.0"/>
         <engine name="cordova-android" version=">=9.0.0"/>
     </engines>
 
-    <js-module name="LocalhostWebServer" src="www/LocalhostWebServer.js">
+    <js-module name="WebServerPlugin" src="www/WebServerPlugin.js">
         <clobbers target="cordova.plugins.webServer" />
     </js-module>
 
@@ -22,8 +22,8 @@
             <preference name="GradlePluginKotlinCodeStyle" value="official" />
             <preference name="GradlePluginKotlinVersion" value="1.3.50" />
             
-            <feature name="LocalhostWebServer">
-                <param name="android-package" value="localhostwebserver.LocalhostWebServer" />
+            <feature name="WebServerPlugin">
+                <param name="android-package" value="webserverplugin.WebServerPlugin" />
             </feature>
         </config-file>
 
@@ -32,14 +32,18 @@
         </config-file>
 
         <config-file parent="/manifest/application" target="AndroidManifest.xml" >
-              <service android:name="localhostwebserver.WebServerService" android:stopWithTask="false" />
+              <service android:name="webserverplugin.WebServerService" android:stopWithTask="false" />
         </config-file>
         <!--  -->
-        <source-file src="src/android/webserver-plugin-build-extras.gradle" target-dir="."/>
-        <source-file src="src/android/LocalhostWebServer.kt" target-dir="src/main/kotlin/localhostwebserver" />
-        <source-file src="src/android/WebServer.kt" target-dir="src/main/kotlin/localhostwebserver"/>
-        <source-file src="src/android/WebServerService.kt" target-dir="src/main/kotlin/localhostwebserver"/>
+        <source-file src="src/gradle/webserver-plugin-build-extras.gradle" target-dir="."/>
+        <source-file src="src/android/WebServerPlugin.kt" target-dir="src/main/kotlin/webserverplugin" />
+        <source-file src="src/android/WebServer.kt" target-dir="src/main/kotlin/webserverplugin"/>
+        <source-file src="src/android/WebServerService.kt" target-dir="src/main/kotlin/webserverplugin"/>
+        <source-file src="src/android/RequestResult.kt" target-dir="src/main/kotlin/webserverplugin"/>
+        <source-file src="src/android/FakeCordovaWebViewImpl.kt" target-dir="src/main/kotlin/webserverplugin"/>
+        <source-file src="src/android/util/Ext.kt" target-dir="src/main/kotlin/webserverplugin/util"/>
+        <source-file src="src/android/util/RequestErrorMapper.kt" target-dir="src/main/kotlin/webserverplugin/util"/>
         <!--  -->
-        <framework src="src/android/LocalhostWebServer.gradle" custom="true" type="gradleReference" />
+        <framework src="src/gradle/webServerPlugin.gradle" custom="true" type="gradleReference" />
     </platform>
 </plugin>

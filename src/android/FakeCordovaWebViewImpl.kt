@@ -1,4 +1,4 @@
-package localhostwebserver
+package webserverplugin
 
 import android.content.Context
 import android.content.Intent
@@ -6,7 +6,8 @@ import android.view.View
 import android.webkit.WebChromeClient
 import org.apache.cordova.*
 
-class FakeCordovaWebViewImpl(private val callback: (PluginResult?, String?) -> Unit) : CordovaWebView {
+class FakeCordovaWebViewImpl(private val callback: (PluginResult?, String?) -> Unit) :
+    CordovaWebView {
 
     override fun sendPluginResult(cr: PluginResult?, callbackId: String?) {
         callback(cr, callbackId)
