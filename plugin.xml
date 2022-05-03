@@ -41,6 +41,7 @@
         <source-file src="src/android/WebServerService.kt" target-dir="src/main/kotlin/webserverplugin"/>
         <source-file src="src/android/RequestResult.kt" target-dir="src/main/kotlin/webserverplugin"/>
         <source-file src="src/android/FakeCordovaWebViewImpl.kt" target-dir="src/main/kotlin/webserverplugin"/>
+        <source-file src="src/android/SslCertificate.kt" target-dir="src/main/kotlin/webserverplugin"/>
         <source-file src="src/android/util/Ext.kt" target-dir="src/main/kotlin/webserverplugin/util"/>
         <source-file src="src/android/util/RequestErrorMapper.kt" target-dir="src/main/kotlin/webserverplugin/util"/>
         <!--  -->

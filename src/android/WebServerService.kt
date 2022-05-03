@@ -17,12 +17,16 @@ class WebServerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "start") {
-            startInForeground()
-            server.start()
+            if (!server.isRunning) {
+                startInForeground()
+                server.start()
+            }
         } else {
+            if (server.isRunning) {
+                server.stop()
+            }
             stopForeground(true)
             stopSelf()
-            server.stop()
         }
         return START_STICKY
     }
@@ -54,6 +58,8 @@ class WebServerService : Service() {
 
     override fun onDestroy() {
         server.stop()
+        stopForeground(true)
+        stopSelf()
         super.onDestroy()
     }
 

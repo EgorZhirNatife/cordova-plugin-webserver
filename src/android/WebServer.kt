@@ -1,6 +1,7 @@
 package webserverplugin
 
 import android.content.Context
+import android.util.Log
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.*
@@ -20,6 +21,7 @@ import webserverplugin.util.respondRequestResult
 
 class WebServer private constructor(private val applicationContext: Context) {
 
+    var isRunning = false
     private var pluginManager: PluginManager? = null
     private var job: CompletableJob? = null
     private var scope: CoroutineScope? = null
@@ -30,56 +32,53 @@ class WebServer private constructor(private val applicationContext: Context) {
     fun start() {
         job = SupervisorJob()
         scope = job?.let { CoroutineScope(Dispatchers.IO + it) }
-
         scope?.launch {
-            server.start(wait = true)
+            server.start(wait = false)
+            isRunning = true
         }
     }
 
     fun stop() {
-        server.stop(1000, 2000)
+        server.stop(0, 0)
         job?.cancelChildren()
+        isRunning = false
     }
 
     private fun createServer(): ApplicationEngine {
         return embeddedServer(factory = Netty, environment = applicationEngineEnvironment {
-            connector {
-                port = PORT
-                host = HOST
-            }
-            /*
             sslConnector(
-                keyStore = SslCredentials.keyStore,
-                keyAlias = SslCredentials.ALIAS,
-                keyStorePassword = { SslCredentials.PASSWORD.toCharArray() },
-                privateKeyPassword = { "".toCharArray() }) {
-                port = 8181
-                keyStorePath = SslCredentials.keyStoreFile.absoluteFile
-            }
-             */
-            module {
-                install(WebSockets)
-                install(CallLogging)
-                install(ContentNegotiation) {
-                    gson {
-                        setPrettyPrinting()
-                        disableHtmlEscaping()
+                keyStore = SslCertificate.getKeyStore(applicationContext),
+                keyAlias = SslCertificate.KEY_ALIAS,
+                keyStorePassword = { SslCertificate.KEY_STORE_PASSWORD.toCharArray() },
+                privateKeyPassword = { SslCertificate.PRIVATE_KEY_PASSWORD.toCharArray() }) {
+
+                port = HTTPS_PORT
+                keyStorePath = SslCertificate.getKeyStoreFile(applicationContext)
+
+                module {
+                    install(WebSockets)
+                    install(CallLogging)
+                    install(ContentNegotiation) {
+                        gson {
+                            setPrettyPrinting()
+                            disableHtmlEscaping()
+                        }
                     }
-                }
-                install(CORS) {
-                    method(HttpMethod.Get)
-                    method(HttpMethod.Post)
-                    anyHost()
-                }
-                install(Compression) {
-                    gzip()
-                }
-                routing {
-                    get("/$STATIC_CONTENT/{...}") { // http://127.0.0.1:8080/static-content/www/index.html
-                        serveStaticContent(this)
+                    install(CORS) {
+                        method(HttpMethod.Get)
+                        method(HttpMethod.Post)
+                        anyHost()
                     }
-                    post("/$CORDOVA_REQUEST") { // http://127.0.0.1:8080/cordova-request
-                        handleCordovaRequest(this)
+                    install(Compression) {
+                        gzip()
+                    }
+                    routing {
+                        get("/$STATIC_CONTENT/{...}") { // https://localhost:3005/static-content/www/index.html
+                            serveStaticContent(this)
+                        }
+                        post("/$CORDOVA_REQUEST") { // https://localhost:3005/cordova-request
+                            handleCordovaRequest(this)
+                        }
                     }
                 }
             }
@@ -96,7 +95,7 @@ class WebServer private constructor(private val applicationContext: Context) {
                 val action = parameters[PARAM_ACTION]
                 val args = parameters[PARAM_ARGS]
                 val callbackId = "callbackId$service${(100000000..999999999).random()}"
-
+                Log.d("tag", "cordova-request:\nservice: $service\naction: $action\nargs: $args")
                 if (pluginManager == null) {
                     call.respondRequestResult(RequestErrorMapper.pluginManagerIsNull())
                     return@apply
@@ -171,9 +170,7 @@ class WebServer private constructor(private val applicationContext: Context) {
 
         const val CORDOVA_REQUEST_TIMEOUT = 5000
 
-        const val HOST = "127.0.0.1"
-        // const val HOST = "192.168.0.101"
-        const val PORT = 8080
+        const val HTTPS_PORT = 3005
 
         private var INSTANCE: WebServer? = null
 
