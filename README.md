@@ -7,8 +7,8 @@ Cordova plugin for localhost web server written in Kotlin and Ktor
 - __Android@9.0.0__
 
 ## Let's start
-- __First step:__ Add from the plugin folder "cert" keystore.bks to ```YourCordovaProject\platforms\android\app\src\main\res\raw\{add keystore.bks here}```
-- __Second step:__ In your index.js file add these line to start server
+- __First step:__ Add from the plugin folder "cert" keystore.bks to ```YourCordovaProject\platforms\android\app\src\main\res\raw\{add keystore.bks here}```. In case you alredy have your own keystore, you should change the fields in the SslCertificate.kt file to your.
+- __Second step:__ In your index.js file add this line to start the web server
 ```js
 cordova.plugins.webServer.startServer(function(result) { console.log(result); }, function(error) { console.log(error); })
 ```
