@@ -47,6 +47,10 @@ class WebServerPlugin : CordovaPlugin() {
 
     private fun startServer(callbackContext: CallbackContext): Boolean {
         try {
+            if (server.isRunning) {
+                callbackContext.sendPluginResult(PluginResult(PluginResult.Status.OK, "already running"))
+                return true
+            }
             scope.launch {
                 server.pluginResultForStart.collect { pluginResult ->
                     callbackContext.sendPluginResult(pluginResult)
@@ -65,12 +69,17 @@ class WebServerPlugin : CordovaPlugin() {
 
     private fun stopServer(callbackContext: CallbackContext): Boolean {
         try {
+            if (!server.isRunning) {
+                callbackContext.sendPluginResult(PluginResult(PluginResult.Status.OK, "already stopped"))
+                return true
+            }
             scope.launch {
                 server.pluginResultForStop.collect { pluginResult ->
                     callbackContext.sendPluginResult(pluginResult)
                     cancel()
                 }
             }
+
             val intent = Intent(cordova.activity, WebServerService::class.java)
             intent.action = "stop"
             startForegroundService(cordova.activity.applicationContext, intent)

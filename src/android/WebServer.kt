@@ -24,7 +24,7 @@ import webserverplugin.util.respondRequestResult
 class WebServer private constructor(private val applicationContext: Context) {
     val pluginResultForStart = MutableSharedFlow<PluginResult>()
     val pluginResultForStop = MutableSharedFlow<PluginResult>()
-    private var isRunning = false
+    var isRunning = false
     private var pluginManager: PluginManager? = null
     private var job: CompletableJob? = null
     private var scope: CoroutineScope? = null
