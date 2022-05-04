@@ -17,14 +17,10 @@ class WebServerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "start") {
-            if (!server.isRunning) {
-                startInForeground()
-                server.start()
-            }
+            startInForeground()
+            server.start()
         } else {
-            if (server.isRunning) {
-                server.stop()
-            }
+            server.stop()
             stopForeground(true)
             stopSelf()
         }

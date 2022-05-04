@@ -2,6 +2,8 @@ package webserverplugin
 
 import android.content.Intent
 import androidx.core.content.ContextCompat.startForegroundService
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.PluginResult
@@ -13,9 +15,15 @@ import org.json.JSONException
  */
 class WebServerPlugin : CordovaPlugin() {
 
+    private val server by lazy {
+        WebServer.getInstance(cordova.context)
+    }
+    private var job = SupervisorJob()
+    private var scope = CoroutineScope(Dispatchers.IO + job)
+
     override fun pluginInitialize() {
         super.pluginInitialize()
-        WebServer.getInstance(cordova.context).setPluginManager(webView.pluginManager)
+        server.setPluginManager(webView.pluginManager)
     }
 
     @Throws(JSONException::class)
@@ -39,10 +47,15 @@ class WebServerPlugin : CordovaPlugin() {
 
     private fun startServer(callbackContext: CallbackContext): Boolean {
         try {
+            scope.launch {
+                server.pluginResultForStart.collect { pluginResult ->
+                    callbackContext.sendPluginResult(pluginResult)
+                    cancel()
+                }
+            }
             val intent = Intent(cordova.activity, WebServerService::class.java)
             intent.action = "start"
             startForegroundService(cordova.activity.applicationContext, intent)
-            callbackContext.sendPluginResult(PluginResult(PluginResult.Status.OK))
         } catch (e: Exception) {
             callbackContext.sendPluginResult(PluginResult(PluginResult.Status.ERROR, e.message))
             return false
@@ -52,10 +65,15 @@ class WebServerPlugin : CordovaPlugin() {
 
     private fun stopServer(callbackContext: CallbackContext): Boolean {
         try {
+            scope.launch {
+                server.pluginResultForStop.collect { pluginResult ->
+                    callbackContext.sendPluginResult(pluginResult)
+                    cancel()
+                }
+            }
             val intent = Intent(cordova.activity, WebServerService::class.java)
             intent.action = "stop"
             startForegroundService(cordova.activity.applicationContext, intent)
-            callbackContext.sendPluginResult(PluginResult(PluginResult.Status.OK))
         } catch (e: Exception) {
             callbackContext.sendPluginResult(PluginResult(PluginResult.Status.ERROR, e.message))
             return false

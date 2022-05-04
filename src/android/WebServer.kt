@@ -14,71 +14,98 @@ import io.ktor.server.netty.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.PluginManager
+import org.apache.cordova.PluginResult
 import webserverplugin.util.RequestErrorMapper
 import webserverplugin.util.respondRequestResult
 
 class WebServer private constructor(private val applicationContext: Context) {
-
-    var isRunning = false
+    val pluginResultForStart = MutableSharedFlow<PluginResult>()
+    val pluginResultForStop = MutableSharedFlow<PluginResult>()
+    private var isRunning = false
     private var pluginManager: PluginManager? = null
     private var job: CompletableJob? = null
     private var scope: CoroutineScope? = null
-    private val server by lazy {
-        createServer()
-    }
+    private var server: ApplicationEngine? = null
 
     fun start() {
-        job = SupervisorJob()
-        scope = job?.let { CoroutineScope(Dispatchers.IO + it) }
-        scope?.launch {
-            server.start(wait = false)
+        if (isRunning) {
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStart.emit(PluginResult(PluginResult.Status.OK, "already running"))
+            }
+            return
+        }
+        try {
+            job = SupervisorJob()
+            scope = job?.let { CoroutineScope(Dispatchers.IO + it) }
+            server = createServer()
+            server?.start(wait = false)
             isRunning = true
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStart.emit(PluginResult(PluginResult.Status.OK, "successfully started"))
+            }
+        } catch (e: Exception) {
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStart.emit(PluginResult(PluginResult.Status.ERROR, e.toString()))
+            }
         }
     }
 
     fun stop() {
-        server.stop(0, 0)
-        job?.cancelChildren()
-        isRunning = false
+        if (!isRunning) {
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStop.emit(PluginResult(PluginResult.Status.OK, "already stopped"))
+            }
+            return
+        }
+        try {
+            server?.stop(0, 0)
+            server = null
+            job?.cancelChildren()
+            isRunning = false
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStop.emit(PluginResult(PluginResult.Status.OK, "successfully stopped"))
+            }
+        } catch (e: Exception) {
+            CoroutineScope(Dispatchers.Default).launch {
+                pluginResultForStop.emit(PluginResult(PluginResult.Status.ERROR, e.toString()))
+            }
+        }
     }
 
     private fun createServer(): ApplicationEngine {
         return embeddedServer(factory = Netty, environment = applicationEngineEnvironment {
-            sslConnector(
-                keyStore = SslCertificate.getKeyStore(applicationContext),
-                keyAlias = SslCertificate.KEY_ALIAS,
-                keyStorePassword = { SslCertificate.KEY_STORE_PASSWORD.toCharArray() },
-                privateKeyPassword = { SslCertificate.PRIVATE_KEY_PASSWORD.toCharArray() }) {
 
-                port = HTTPS_PORT
-                keyStorePath = SslCertificate.getKeyStoreFile(applicationContext)
+            connector {
+                host = HOST
+                port = HTTP_PORT
+            }
 
-                module {
-                    install(WebSockets)
-                    install(CallLogging)
-                    install(ContentNegotiation) {
-                        gson {
-                            setPrettyPrinting()
-                            disableHtmlEscaping()
-                        }
+            module {
+                install(WebSockets)
+                install(CallLogging)
+                install(ContentNegotiation) {
+                    gson {
+                        setPrettyPrinting()
+                        disableHtmlEscaping()
                     }
-                    install(CORS) {
-                        method(HttpMethod.Get)
-                        method(HttpMethod.Post)
-                        anyHost()
+                }
+                install(CORS) {
+                    method(HttpMethod.Get)
+                    method(HttpMethod.Post)
+                    anyHost()
+                }
+                install(Compression) {
+                    gzip()
+                }
+                routing {
+                    get("/$STATIC_CONTENT/{...}") { // http://localhost:3005/static-content/www/index.html
+                        serveStaticContent(this)
                     }
-                    install(Compression) {
-                        gzip()
-                    }
-                    routing {
-                        get("/$STATIC_CONTENT/{...}") { // https://localhost:3005/static-content/www/index.html
-                            serveStaticContent(this)
-                        }
-                        post("/$CORDOVA_REQUEST") { // https://localhost:3005/cordova-request
-                            handleCordovaRequest(this)
-                        }
+                    post("/$CORDOVA_REQUEST") { // http://localhost:3005/cordova-request
+                        handleCordovaRequest(this)
                     }
                 }
             }
@@ -170,7 +197,8 @@ class WebServer private constructor(private val applicationContext: Context) {
 
         const val CORDOVA_REQUEST_TIMEOUT = 5000
 
-        const val HTTPS_PORT = 3005
+        const val HOST = "127.0.0.1"
+        const val HTTP_PORT = 3005
 
         private var INSTANCE: WebServer? = null
 
