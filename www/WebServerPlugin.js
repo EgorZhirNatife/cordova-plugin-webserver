@@ -4,7 +4,7 @@ module.exports = {
     startServer: function(success, error) {
       exec(success, error, "WebServerPlugin", "startServer", []);
     },
-    stopServer: function() {
+    stopServer: function(success, error) {
       exec(success, error, "WebServerPlugin", "stopServer", []);
     }
 };
