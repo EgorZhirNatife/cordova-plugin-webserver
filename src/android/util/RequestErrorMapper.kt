@@ -6,8 +6,8 @@ import webserverplugin.RequestResult
 
 object RequestErrorMapper {
 
-    private const val ACTION_EXECUTION_IS_INVALID = "action execution is invalid"
-    private const val SERVICE_NOT_FOUND = "service not found"
+    private const val ACTION_EXECUTION_IS_INVALID = "invalid action execution: "
+    private const val SERVICE_NOT_FOUND = "service not found: "
     private const val PLUGIN_MANAGER_IS_NULL = "pluginManager is null"
     private const val GATEWAY_TIMEOUT = "gateway timeout"
     private const val DIFFERENT_CALLBACK_ID = "different callbackId"
@@ -111,15 +111,15 @@ object RequestErrorMapper {
         status = HttpStatusCode.GatewayTimeout
     )
 
-    fun invalidExecutionAction() = RequestResult(
+    fun invalidExecutionAction(action: String?) = RequestResult(
         contentType = ContentType.Text.Plain,
-        text = ACTION_EXECUTION_IS_INVALID.wrapInError(),
+        text = ACTION_EXECUTION_IS_INVALID.plus(action).wrapInError(),
         status = HttpStatusCode.NotFound
     )
 
-    fun serviceNotFound() = RequestResult(
+    fun serviceNotFound(service: String?) = RequestResult(
         contentType = ContentType.Text.Plain,
-        text = SERVICE_NOT_FOUND.wrapInError(),
+        text = SERVICE_NOT_FOUND.plus(service).wrapInError(),
         status = HttpStatusCode.NotFound
     )
 

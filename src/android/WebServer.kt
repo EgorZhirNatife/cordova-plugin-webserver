@@ -44,7 +44,12 @@ class WebServer private constructor(private val applicationContext: Context) {
             server?.start(wait = false)
             isRunning = true
             CoroutineScope(Dispatchers.Default).launch {
-                pluginResultForStart.emit(PluginResult(PluginResult.Status.OK, "successfully started"))
+                pluginResultForStart.emit(
+                    PluginResult(
+                        PluginResult.Status.OK,
+                        "successfully started"
+                    )
+                )
             }
         } catch (e: Exception) {
             CoroutineScope(Dispatchers.Default).launch {
@@ -66,7 +71,12 @@ class WebServer private constructor(private val applicationContext: Context) {
             job?.cancelChildren()
             isRunning = false
             CoroutineScope(Dispatchers.Default).launch {
-                pluginResultForStop.emit(PluginResult(PluginResult.Status.OK, "successfully stopped"))
+                pluginResultForStop.emit(
+                    PluginResult(
+                        PluginResult.Status.OK,
+                        "successfully stopped"
+                    )
+                )
             }
         } catch (e: Exception) {
             CoroutineScope(Dispatchers.Default).launch {
@@ -119,8 +129,8 @@ class WebServer private constructor(private val applicationContext: Context) {
                 var isRequestFinished = false
                 val parameters = call.receiveParameters()
                 val service = parameters[PARAM_SERVICE]
-                val action = parameters[PARAM_ACTION]
-                val args = parameters[PARAM_ARGS]
+                val action = parameters[PARAM_ACTION] ?: ""
+                val args = parameters[PARAM_ARGS] ?: "[]"
                 val callbackId = "callbackId$service${(100000000..999999999).random()}"
                 Log.d("tag", "cordova-request:\nservice: $service\naction: $action\nargs: $args")
                 if (pluginManager == null) {
@@ -130,7 +140,7 @@ class WebServer private constructor(private val applicationContext: Context) {
 
                 val plugin = pluginManager?.getPlugin(service)
                 if (plugin == null) {
-                    call.respondRequestResult(RequestErrorMapper.serviceNotFound())
+                    call.respondRequestResult(RequestErrorMapper.serviceNotFound(service))
                     return@apply
                 }
 
@@ -150,7 +160,7 @@ class WebServer private constructor(private val applicationContext: Context) {
                 val callbackContext = CallbackContext(callbackId, fakeWebView)
                 val wasValidAction = plugin.execute(action, args, callbackContext)
                 if (!wasValidAction) {
-                    call.respondRequestResult(RequestErrorMapper.invalidExecutionAction())
+                    call.respondRequestResult(RequestErrorMapper.invalidExecutionAction(action))
                     return@apply
                 }
 
@@ -162,6 +172,7 @@ class WebServer private constructor(private val applicationContext: Context) {
                     delay(25)
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
                 call.respondRequestResult(RequestErrorMapper.internalServerError(e))
             }
         }
@@ -188,8 +199,8 @@ class WebServer private constructor(private val applicationContext: Context) {
 
     companion object {
 
-        const val PARAM_ACTION = "action"
         const val PARAM_SERVICE = "service"
+        const val PARAM_ACTION = "action"
         const val PARAM_ARGS = "args"
 
         const val STATIC_CONTENT = "static-content"
